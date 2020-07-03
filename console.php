@@ -10,7 +10,6 @@ $csvline->generateHtmlByRegion(\Jan\Services\Region::stuff());
 
 
 /*
-
 # HTML generator
 $console = new \Jan\Console\Application(__DIR__.'/');
 $status = $console->handle(

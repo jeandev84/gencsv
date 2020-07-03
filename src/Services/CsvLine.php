@@ -52,70 +52,50 @@ class CsvLine
    */
    public function generateHtmlByRegion(array $regions)
    {
-       ini_set("memory_limit", "-1");
-       $row = 1;
-       $sources = [];
+           ini_set("memory_limit", "-1");
+           $row = 1;
+           $csvFile = $this->fullFilename($this->filename);
+           $extension = pathinfo($csvFile)['extension'] ?? '';
 
-       $csvFile = $this->fullFilename($this->filename);
-
-       $extension = pathinfo($csvFile)['extension'] ?? '';
-
-       if($extension != 'csv')
-       {
-            exit('Ошибка расшерения файла!');
-       }
-
-       $content = $this->getContentHeader();
-       $content .= $this->getHeaders();
-       $sources = [];
-
-       if (($handle = fopen($csvFile, "r")) !== FALSE)
-       {
-           while (($data = fgetcsv($handle, 1000, ";")) !== FALSE)
+           if($extension != 'csv')
            {
-               $data = $this->filteredData($data);
-               $region = isset($data[12]) ? $data[12] : false;
-               $num = count($data);
+               exit('Ошибка расшерения файла!');
+           }
 
-               if(in_array($region, $regions))
+           $row = 1;
+           $sources = [];
+           $content = $this->getContentHeader();
+           $content .= $this->getHeaders();
+
+           if (($handle = fopen($csvFile, "r")) !== FALSE)
+           {
+               while (($data = fgetcsv($handle, 1000, ";")) !== FALSE)
                {
-                   if($row == 1)
+                   $data = $this->filteredData($data);
+                   $region = isset($data[12]) ? $data[12] : false;
+                   // $num = count($data);
+
+                   if(in_array($region, $regions))
                    {
-                       $content .= "<thead>\n";
-                       $content .= "<tr>\n";
-                   }else{
-                       $content .= "<tr>\n";
+                        $sources[$region][] = $data;
                    }
 
-                   for ($c=0; $c < $num; $c++)
-                   {
-                       if(empty($data[$c]))
-                       {
-                           continue;
-                       }else{
-                           $value = $data[$c];
-                       }
+                   $row++;
+               }
 
-                       if($row == 1)
-                       {
-                           $content .= "<th>$value</th>\n";
-                       }else{
-                           $content .= "<td>$value</td>\n";
-                       }
-                   }
-                   $content .= "<td>$region</td>\n";
-                   if($row == 1)
+               $files = [];
+
+               foreach ($sources as $region => $source)
+               {
+                   foreach ($source as $s)
                    {
-                       $content .= "</tr>\n";
-                       $content .= "</thead>\n";
-                       $content .= "<tbody>";
-                   } else {
-                       $content .= "</tr>\n";
+                       $content .= $this->buildHtml($s);
                    }
 
-                   // dump($content);
+                   $content .= $this->getContentFooter();
+
                    $nameOfRegion = str_replace(' ', '_', $region);
-                   $filename = $this->fullFilename('html/'. $nameOfRegion . '.html');
+                   $filename = $this->fullFilename(sprintf('html/%s.html', $nameOfRegion));
                    $dirname = dirname($filename);
 
                    if(! is_dir($dirname))
@@ -126,125 +106,51 @@ class CsvLine
                    file_put_contents($filename, $content);
                }
 
-               $row++;
-           }
+           } // end if
+      }
 
-           fclose($handle);
 
-       } else {
-           // error opening the file.
-           echo "error opening file";
-       }
-   }
+      /**
+        * @param array $data
+       * @return string
+      */
+      public function buildHtml(array $data)
+      {
+          $content = "<tr>\n";
+          foreach ($data as $value)
+          {
+              $content .= "<td>$value</td>\n";
+          }
+          $content .= "<tr>\n";
+          return $content;
+      }
+
 
 
     /**
-     * @return string
-   */
-   public function getHeaders()
-   {
-       $headers = [
-           "username",
-           "password",
-           "idnumber",
-           "lastname",
-           "firstname",
-           "middlename",
-           "institution",
-           "department",
-           "profile_field_region_d"
-       ];
-
-       $html = "<tr>\n";
-       foreach ($headers as $header)
-       {
-           $html .= "<td>$header</td>\n";
-       }
-       $html .= "</tr>\n";
-       return $html;
-   }
-
-
-  /**
      * @param array $data
      * @return array
-   */
-   public function filteredData(array $data)
-   {
-       $diff = [];
-       foreach ($data as $key => $value)
-       {
-           if(in_array($key, [3, 9, 10, 11]))
-           {
-               $diff[$key] = $value;
-           }
-       }
+     */
+    public function filteredData(array $data)
+    {
+        $diff = [];
+        foreach ($data as $key => $value)
+        {
+            if(in_array($key, [3, 9, 10, 11]))
+            {
+                $diff[$key] = $value;
+            }
+        }
 
-       return array_diff($data, $diff);
-   }
-
-   /**
-     * @param $sources
-     * @return string
-   */
-   public function buildHtmlCode($sources)
-   {
-       $str = [];
-       foreach ($sources as $source)
-       {
-          $str[] = $this->buildRows($source);
-       }
-       return join("\n", $str);
-   }
-
-
-   /**
-     * @param array $source
-     * @return string
-   */
-   public function buildRows($source)
-   {
-       if(is_array($source))
-       {
-           $str[] = '<tr>';
-           for($i = 0; $i < count($source); $i++)
-           {
-               if(isset($source[$i]))
-               {
-                   $str[] = '<td>'. $source[$i] . '</td>';
-               }
-               $str[] = '<td></td>';
-           }
-           $str[] = '</tr>';
-
-           return join("\n", $str);
-       }
-
-   }
-
-
-  /**
-     * @param array $rows
-     * @return string
-   */
-   public function buildSimpleRow(array $rows)
-   {
-       $str = "<tr>\n";
-       foreach ($rows as $row)
-       {
-           $str .= "<td>\n";
-           $str .= $row ."\n";
-           $str .= "</td>\n";
-       }
-       $str .= "</tr>";
-       return $str;
+        return array_diff($data, $diff);
     }
 
 
 
+
     /**
      * @return string
-    */
+     */
     public function getContentHeader()
     {
         $headHtml = [
@@ -252,10 +158,10 @@ class CsvLine
             '<html>',
             '<head>',
             '<meta http-equiv="content-type" content="text/html; charset=utf-8"/>',
-	        '<title></title>',
-	        '<meta name="generator" content="LibreOffice 6.3.5.2 (Linux)"/>',
-	        '<meta name="created" content="00:00:00"/>',
-	        '<meta name="changed" content="2020-07-02T12:15:51.172466787"/>',
+            '<title></title>',
+            '<meta name="generator" content="LibreOffice 6.3.5.2 (Linux)"/>',
+            '<meta name="created" content="00:00:00"/>',
+            '<meta name="changed" content="2020-07-02T12:15:51.172466787"/>',
             '<style type="text/css">
                 body,div,table,thead,tbody,tfoot,tr,th,td,p 
                 { font-family:"Liberation Sans"; font-size:x-small }
@@ -266,16 +172,15 @@ class CsvLine
             '</head>',
             '<body>',
             '<table cellspacing="0" border="0">',
-	         '<colgroup width="76"></colgroup>',
-             '<colgroup width="68"></colgroup>',
-             '<colgroup width="137"></colgroup>',
-             '<colgroup width="111"></colgroup>',
-             '<colgroup width="87"></colgroup>',
-             '<colgroup width="112"></colgroup>',
-             '<colgroup width="940"></colgroup>',
-             '<colgroup width="736"></colgroup>',
-             '<colgroup width="540"></colgroup>',
-            "\n"
+            '<colgroup width="76"></colgroup>',
+            '<colgroup width="68"></colgroup>',
+            '<colgroup width="137"></colgroup>',
+            '<colgroup width="111"></colgroup>',
+            '<colgroup width="87"></colgroup>',
+            '<colgroup width="112"></colgroup>',
+            '<colgroup width="940"></colgroup>',
+            '<colgroup width="736"></colgroup>',
+            '<colgroup width="540"></colgroup>'
         ];
 
         return join("\n", $headHtml);
@@ -284,168 +189,45 @@ class CsvLine
 
     /**
      * @return string
-    */
-    public function  getContentFooter()
+     */
+    public function getHeaders()
     {
-       $footerHtml = [
-           '</table>',
-           '<!-- ************************************************************************** -->',
-           '</body>',
-           '</html>'
-       ];
+        $headers = [
+            "username",
+            "password",
+            "idnumber",
+            "lastname",
+            "firstname",
+            "middlename",
+            "institution",
+            "department",
+            "profile_field_region_d"
+        ];
 
-       return join("\n", $footerHtml);
+        $html = "<tr>\n";
+        foreach ($headers as $header)
+        {
+            $html .= "<td>$header</td>\n";
+        }
+        $html .= "</tr>\n";
+        return $html;
     }
 
 
     /**
-     * @param array $allows
+     * @return string
      */
-    /*
-    public function getLinesOld(array $allows)
+    public function  getContentFooter()
     {
-        ini_set("memory_limit", "-1");
-        $handle = fopen($this->source, "r");
-        if ($handle) {
-            while (($line = fgets($handle)) !== false) {
-                //  echo "start reading ";
-                if(!in_array($line, $allows)) {
-                    echo "linenotfound\n";
-                } else {
-                    switch($line){
-                        case "Владимирская область\n"; echo "33\n";
+        $footerHtml = [
+            '</table>',
+            '<!-- ************************************************************************** -->',
+            '</body>',
+            '</html>'
+        ];
 
-                            break;
-                        case "Волгоградская область\n"; echo "34\n";
-
-                            break;
-                        case "Вологодская область\n"; echo "35\n";
-
-                            break;
-                        case "Воронежская область\n"; echo "36\n";
-
-                            break;
-                        case "Ивановская область\n"; echo "37\n";
-
-                            break;
-                        case "Иркутская область\n"; echo "38\n";
-
-                            break;
-                        case "Калининградская область\n"; echo "39\n";
-
-                            break;
-                        case "Калужская область\n"; echo "40\n";
-
-                            break;
-                        case "Кемеровская область\n"; echo "42\n";
-
-                            break;
-                        case "Кировская область\n"; echo "43\n";
-
-                            break;
-                        case "Костромская область\n"; echo "44\n";
-
-                            break;
-                        case "Курганская область\n"; echo "45\n";
-
-                            break;
-                        case "Курская область\n"; echo "46\n";
-
-                            break;
-                        case "Ленинградская область\n"; echo "47\n";
-
-                            break;
-                        case "Липецкая область\n"; echo "48\n";
-
-                            break;
-                        case "Магаданская область\n"; echo "49\n";
-
-                            break;
-                        case "Московская область\n"; echo "50\n";
-
-                            break;
-                        case "Мурманская область\n"; echo "51\n";
-
-                            break;
-                        case "Нижегородская область\n"; echo "52\n";
-
-                            break;
-                        case "Новгородская область\n"; echo "53\n"; break;
-                        case "Новосибирская область\n"; echo "54\n"; break;
-                        case "Омская область\n"; echo "55\n"; break;
-                        case "Оренбургская область\n"; echo "56\n"; break;
-                        case "Орловская область\n"; echo "57\n"; break;
-                        case "Пензенская область\n"; echo "58\n"; break;
-                        case "Псковская область\n"; echo "60\n"; break;
-                        case "Ростовская область\n"; echo "61\n"; break;
-                        case "Рязанская область\n"; echo "62\n"; break;
-                        case "Самарская область\n"; echo "63\n"; break;
-                        case "Саратовская область\n"; echo "64\n"; break;
-                        case "Сахалинская область\n"; echo "65\n"; break;
-                        case "Свердловская область\n"; echo "66\n"; break;
-                        case "Смоленская область\n"; echo "67\n"; break;
-                        case "Тамбовская область\n"; echo "68\n"; break;
-                        case "Тверская область\n"; echo "69\n"; break;
-                        case "Томская область\n"; echo "70\n"; break;
-                        case "Тульская область\n"; echo "71\n"; break;
-                        case "Тюменская область\n"; echo "72\n"; break;
-                        case "Ульяновская область\n"; echo "73\n"; break;
-                        case "Челябинская область\n"; echo "74\n"; break;
-                        case "Ярославская область\n"; echo "76\n"; break;
-                        case "г. Москва\n"; echo "77\n"; break;
-                        case "г. Санкт-Петербург\n"; echo "78\n"; break;
-                        case "г. Севастополь\n"; echo "92\n"; break;
-                        case "Еврейская автономная область\n"; echo "79\n"; break;
-                        case "Ненецкий автономный округ\n"; echo "83\n"; break;
-                        case "Ханты-Мансийский автономный округ - Югра\n"; echo "86\n"; break;
-                        case "Чукотский автономный округ\n"; echo "87\n"; break;
-                        case "Ямало-Ненецкий автономный округ\n"; echo "89\n"; break;
-                        case "Республика Адыгея\n"; echo "01\n"; break;
-                        case "Республика Алтай\n"; echo "04\n"; break;
-                        case "Республика Башкортостан\n"; echo "02\n"; break;
-                        case "Республика Бурятия\n"; echo "03\n"; break;
-                        case "Республика Дагестан\n"; echo "05\n"; break;
-                        case "Республика Ингушетия\n"; echo "06\n"; break;
-                        case "Кабардино-Балкарская Республика\n"; echo "07\n"; break;
-                        case "Республика Калмыкия\n"; echo "08\n"; break;
-                        case "Карачаево-Черкесская Республика\n"; echo "09\n"; break;
-                        case "Республика Карелия\n"; echo "10\n"; break;
-                        case "Республика Коми\n"; echo "11\n"; break;
-                        case "Республика Крым\n"; echo "91\n"; break;
-                        case "Республика Марий Эл\n"; echo "12\n"; break;
-                        case "Республика Мордовия\n"; echo "13\n"; break;
-                        case "Республика Саха (Якутия)\n"; echo "14\n"; break;
-                        case "Республика Северная Осетия — Алания\n"; echo "15\n"; break;
-                        case "Республика Татарстан\n"; echo "16\n"; break;
-                        case "Республика Тыва\n"; echo "17\n"; break;
-                        case "Удмуртская Республика\n"; echo "18\n"; break;
-                        case "Республика Хакасия\n"; echo "19\n"; break;
-                        case "Чеченская Республика\n"; echo "20\n"; break;
-                        case "Чувашская Республика\n"; echo "21\n"; break;
-                        case "Алтайский край\n"; echo "22\n"; break;
-                        case "Забайкальский край\n"; echo "75\n"; break;
-                        case "Камчатский край\n"; echo "41\n"; break;
-                        case "Краснодарский край\n"; echo "23\n"; break;
-                        case "Красноярский край\n"; echo "24\n"; break;
-                        case "Пермский край\n"; echo "59\n"; break;
-                        case "Приморский край\n"; echo "25\n"; break;
-                        case "Ставропольский край\n"; echo "26\n"; break;
-                        case "Хабаровский край\n"; echo "27\n"; break;
-                        case "Амурская область\n"; echo "28\n"; break;
-                        case "Архангельская область\n"; echo "29\n"; break;
-                        case "Астраханская область\n"; echo "30\n"; break;
-                        case "Белгородская область\n"; echo "31\n"; break;
-                        case "Брянская область\n"; echo "32\n"; break;
-                    }
-                }
-            }
-
-            fclose($handle);
-        } else {
-            // error opening the file.
-            echo "error opening file";
-        }
+        return join("\n", $footerHtml);
     }
-    */
+
 
 }
