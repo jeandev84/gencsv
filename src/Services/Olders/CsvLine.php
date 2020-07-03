@@ -1,10 +1,10 @@
 <?php
-namespace Jan\Services;
+namespace Jan\Services\Olders;
 
 
 /**
  * Class CsvLine
- * @package Jan\Services
+ * @package Jan\Services\Olders
 */
 class CsvLine
 {
@@ -66,64 +66,40 @@ class CsvLine
        }
 
        $content = $this->getContentHeader();
-       $content .= $this->getHeaders();
-       $sources = [];
 
        if (($handle = fopen($csvFile, "r")) !== FALSE)
        {
-           while (($data = fgetcsv($handle, 1000, ";")) !== FALSE)
+           while (($data = fgetcsv($handle, 1000, ",")) !== FALSE)
            {
-               $data = $this->filteredData($data);
-               $region = isset($data[12]) ? $data[12] : false;
                $num = count($data);
+               // $row++;
 
-               if(in_array($region, $regions))
+               for ($c=0; $c < $num; $c++)
                {
-                   if($row == 1)
-                   {
-                       $content .= "<thead>\n";
-                       $content .= "<tr>\n";
-                   }else{
-                       $content .= "<tr>\n";
-                   }
+                   $parts = explode(';', $data[$c]);
+                   $diff = [];
 
-                   for ($c=0; $c < $num; $c++)
+                   foreach ($parts as $key => $value)
                    {
-                       if(empty($data[$c]))
+                       if(in_array($key, [3, 9, 10, 11]))
                        {
-                           continue;
-                       }else{
-                           $value = $data[$c];
-                       }
-
-                       if($row == 1)
-                       {
-                           $content .= "<th>$value</th>\n";
-                       }else{
-                           $content .= "<td>$value</td>\n";
+                           $diff[$key] = $value;
                        }
                    }
-                   $content .= "<td>$region</td>\n";
-                   if($row == 1)
+
+                   $parts = array_diff($parts, $diff);
+
+                   if($row = 1)
                    {
-                       $content .= "</tr>\n";
-                       $content .= "</thead>\n";
-                       $content .= "<tbody>";
-                   } else {
-                       $content .= "</tr>\n";
+                       $content .= $this->buildSimpleRow($parts);
                    }
 
-                   // dump($content);
-                   $nameOfRegion = str_replace(' ', '_', $region);
-                   $filename = $this->fullFilename('html/'. $nameOfRegion . '.html');
-                   $dirname = dirname($filename);
+                   $region = isset($parts[12]) ? $parts[12] : '';
 
-                   if(! is_dir($dirname))
+                   if (in_array($region, $regions))
                    {
-                       mkdir($dirname, 0777, true);
+                       $sources[$region][] = $parts;
                    }
-
-                   file_put_contents($filename, $content);
                }
 
                $row++;
@@ -131,57 +107,40 @@ class CsvLine
 
            fclose($handle);
 
+           dump($sources);
+
+           // Build HTML files
+           $str = [];
+           foreach ($sources as $region => $components)
+           {
+               $str = [
+                   'html' => $this->buildHtmlCode($components),
+                   'region' => $region
+               ];
+
+               $content .= $str['html'];
+               $content .= $this->getContentFooter();
+
+               //echo $content;
+
+               $nameOfRegion = str_replace(' ', '_', $str['region']);
+               $filename = $this->fullFilename('html/'. $nameOfRegion . '.html');
+               $dirname = dirname($filename);
+
+               if(! is_dir($dirname))
+               {
+                   mkdir($dirname, 0777, true);
+               }
+
+               // file_put_contents($filename, $content);
+           }
+
        } else {
            // error opening the file.
            echo "error opening file";
        }
    }
 
-
-    /**
-     * @return string
-   */
-   public function getHeaders()
-   {
-       $headers = [
-           "username",
-           "password",
-           "idnumber",
-           "lastname",
-           "firstname",
-           "middlename",
-           "institution",
-           "department",
-           "profile_field_region_d"
-       ];
-
-       $html = "<tr>\n";
-       foreach ($headers as $header)
-       {
-           $html .= "<td>$header</td>\n";
-       }
-       $html .= "</tr>\n";
-       return $html;
-   }
-
-
-  /**
-     * @param array $data
-     * @return array
-   */
-   public function filteredData(array $data)
-   {
-       $diff = [];
-       foreach ($data as $key => $value)
-       {
-           if(in_array($key, [3, 9, 10, 11]))
-           {
-               $diff[$key] = $value;
-           }
-       }
-
-       return array_diff($data, $diff);
-   }
 
    /**
      * @param $sources
