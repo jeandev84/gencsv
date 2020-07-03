@@ -65,7 +65,7 @@ class CsvLine
             exit('Ошибка расшерения файла!');
        }
 
-       $content = "<table>\n";
+       $content = $this->getContentHeader(); //"<table>\n";
 
        if (($handle = fopen($csvFile, "r")) !== FALSE)
        {
@@ -113,13 +113,13 @@ class CsvLine
                    'region' => $region
                ];
 
-               // $content = "<table>\n";
                $content .= $str['html'];
-               $content .= "</table>\n";
+               $content .= $this->getContentFooter();
 
                //echo $content;
 
-               $filename = $this->fullFilename('html/'. strtolower($str['region']) . '.html');
+               $nameOfRegion = str_replace(' ', '_', $str['region']);
+               $filename = $this->fullFilename('html/'. $nameOfRegion . '.html');
                $dirname = dirname($filename);
 
                if(! is_dir($dirname))
@@ -192,11 +192,68 @@ class CsvLine
        }
        $str .= "</tr>";
        return $str;
-   }
+    }
+
+
+
+    /**
+     * @return string
+    */
+    public function getContentHeader()
+    {
+        $headHtml = [
+            '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">',
+            '<html>',
+            '<head>',
+            '<meta http-equiv="content-type" content="text/html; charset=utf-8"/>',
+	        '<title></title>',
+	        '<meta name="generator" content="LibreOffice 6.3.5.2 (Linux)"/>',
+	        '<meta name="created" content="00:00:00"/>',
+	        '<meta name="changed" content="2020-07-02T12:15:51.172466787"/>',
+            '<style type="text/css">
+                body,div,table,thead,tbody,tfoot,tr,th,td,p { font-family:"Liberation Sans"; font-size:x-small }
+                a.comment-indicator:hover + comment { background:#ffd; position:absolute; display:block; border:1px solid black; padding:0.5em;  } 
+                a.comment-indicator { background:red; display:inline-block; border:1px solid black; width:0.5em; height:0.5em;  } 
+                comment { display:none;  } 
+	        </style>',
+            '</head>',
+            '<body>',
+            '<table cellspacing="0" border="0">',
+	         '<colgroup width="76"></colgroup>',
+             '<colgroup width="68"></colgroup>',
+             '<colgroup width="137"></colgroup>',
+             '<colgroup width="111"></colgroup>',
+             '<colgroup width="87"></colgroup>',
+             '<colgroup width="112"></colgroup>',
+             '<colgroup width="940"></colgroup>',
+             '<colgroup width="736"></colgroup>',
+             '<colgroup width="540"></colgroup>'
+        ];
+
+        return join("\n", $headHtml);
+    }
+
+
+    /**
+     * @return string
+    */
+    public function  getContentFooter()
+    {
+       $footerHtml = [
+           '</table>',
+           '<!-- ************************************************************************** -->',
+           '</body>',
+           '</html>'
+       ];
+
+       return join("\n", $footerHtml);
+    }
+
 
     /**
      * @param array $allows
-    */
+     */
+    /*
     public function getLinesOld(array $allows)
     {
         ini_set("memory_limit", "-1");
@@ -341,4 +398,6 @@ class CsvLine
             echo "error opening file";
         }
     }
+    */
+
 }

@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 // #!/usr/bin/env php
 require_once __DIR__.'/vendor/autoload.php';
